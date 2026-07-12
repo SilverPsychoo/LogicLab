@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LogicLab — Compuertas y Álgebra Booleana</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark logo-mark"><img src="logo.png" alt="Logo de LogicLab" /></div>
+      <div>
+        <h1>LogicLab</h1>
+        <p>Compuertas, ecuaciones, simplificación y tablas de verdad</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="undoBtn" class="btn ghost" title="Deshacer (Ctrl+Z)" disabled>↶ Deshacer</button>
+      <button id="redoBtn" class="btn ghost" title="Rehacer (Ctrl+Y o Ctrl+Shift+Z)" disabled>↷ Rehacer</button>
+      <button id="newBtn" class="btn ghost" title="Crear un proyecto nuevo">Nuevo</button>
+      <button id="saveBtn" class="btn ghost">Guardar</button>
+      <button id="openBtn" class="btn ghost">Abrir</button>
+      <button id="exportBtn" class="btn primary">Exportar SVG</button>
+      <input id="fileInput" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Secciones principales">
+    <button class="tab active" data-tab="circuit">Circuito</button>
+    <button class="tab" data-tab="equations">Ecuaciones</button>
+    <button class="tab" data-tab="truth">Tabla de verdad</button>
+    <button class="tab" data-tab="rules">Reglas</button>
+  </nav>
+
+  <main>
+    <section id="circuitTab" class="tab-panel active">
+      <div class="workspace">
+        <aside class="palette">
+          <div class="panel-title">
+            <div>
+              <strong>Compuertas</strong>
+              <span>Arrastra o toca para agregar</span>
+            </div>
+          </div>
+          <div id="gatePalette" class="gate-palette"></div>
+
+          <div class="help-card">
+            <strong>Cómo conectar</strong>
+            <ol>
+              <li>Toca el puerto de salida.</li>
+              <li>Toca el puerto de entrada.</li>
+              <li>Haz clic en una entrada para cambiar 0/1.</li>
+              <li>Selecciona una compuerta para usar de 2 a 8 entradas.</li>
+              <li>Haz clic sobre un cable y usa <b>Supr</b>, el botón Eliminar cable o clic derecho.</li>
+            </ol>
+          </div>
+
+          <div class="selection-card">
+            <div class="selection-header">
+              <strong>Elemento seleccionado</strong>
+              <button id="deleteNodeBtn" class="icon-btn danger" title="Eliminar elemento">×</button>
+            </div>
+            <label>
+              Nombre
+              <input id="selectedName" type="text" placeholder="Selecciona un elemento" disabled />
+            </label>
+            <label id="selectedInputsGroup" class="input-count-control hidden">
+              Número de entradas
+              <select id="selectedInputCount" disabled>
+                <option value="2">2 entradas</option>
+                <option value="3">3 entradas</option>
+                <option value="4">4 entradas</option>
+                <option value="5">5 entradas</option>
+                <option value="6">6 entradas</option>
+                <option value="7">7 entradas</option>
+                <option value="8">8 entradas</option>
+              </select>
+            </label>
+            <div id="selectedInfo" class="muted">Sin selección</div>
+          </div>
+        </aside>
+
+        <section class="board-wrap">
+          <div class="board-toolbar">
+            <div class="toolbar-group">
+              <button id="zoomOutBtn" class="icon-btn" title="Alejar">−</button>
+              <span id="zoomLabel">100%</span>
+              <button id="zoomInBtn" class="icon-btn" title="Acercar">+</button>
+              <button id="centerBtn" class="btn small ghost">Centrar</button>
+            </div>
+            <div class="toolbar-group">
+              <span id="connectionHint" class="status-dot">Listo para conectar</span>
+              <button id="deleteWireBtn" class="btn small danger" disabled>Eliminar cable</button>
+              <button id="clearWiresBtn" class="btn small ghost">Borrar todos</button>
+            </div>
+          </div>
+          <div id="boardViewport" class="board-viewport">
+            <div id="circuitBoard" class="circuit-board" tabindex="0">
+              <svg id="wiresLayer" class="wires-layer" width="1600" height="900" aria-hidden="true"></svg>
+              <div id="nodesLayer" class="nodes-layer"></div>
+            </div>
+          </div>
+          <div class="board-footer">
+            <span><kbd>Supr</kbd> elimina el elemento o cable seleccionado</span>
+            <span><kbd>Ctrl</kbd> + <kbd>Z</kbd> deshace · clic derecho en un cable lo elimina</span>
+            <span><kbd>Esc</kbd> cancela una conexión</span>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <div class="panel-title">
+            <div>
+              <strong>Salidas</strong>
+              <span>Estado actual del circuito</span>
+            </div>
+            <button id="evaluateBtn" class="btn small primary">Evaluar</button>
+          </div>
+          <div id="outputsPanel" class="outputs-panel empty-state">
+            Agrega una salida para ver el resultado.
+          </div>
+
+          <div class="equation-preview">
+            <div class="panel-title compact">
+              <div>
+                <strong>Ecuación generada</strong>
+                <span>Desde la salida del circuito</span>
+              </div>
+              <button id="copyEquationBtn" class="icon-btn" title="Copiar ecuación">⧉</button>
+            </div>
+            <div id="generatedEquation" class="equation-box">—</div>
+          </div>
+
+          <div class="quick-actions">
+            <button id="openTruthBtn" class="btn full">Generar tabla de verdad</button>
+            <button id="sendEquationBtn" class="btn full ghost">Mandar a simplificación</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="equationsTab" class="tab-panel">
+      <div class="equation-layout">
+        <section class="equation-editor-card">
+          <div class="section-heading">
+            <div>
+              <h2>Espacio de simplificación</h2>
+              <p>Escribe la ecuación original, simplifícala paso a paso y comprueba equivalencia.</p>
+            </div>
+          </div>
+
+          <label class="field-label" for="originalExpression">Ecuación original</label>
+          <textarea id="originalExpression" rows="3" spellcheck="false" placeholder="Ejemplo: A'B + AB' + AB"></textarea>
+          <div class="syntax-help">
+            AND: <code>*</code>, <code>·</code> o unión entre letras · OR: <code>+</code> · NOT: <code>!</code>, <code>¬</code> o <code>'</code> · XOR: <code>^</code>
+          </div>
+
+          <div class="equation-buttons">
+            <button id="fromCircuitBtn" class="btn ghost">Tomar del circuito</button>
+            <button id="simplifyBtn" class="btn primary">Simplificar automáticamente</button>
+            <button id="expressionTableBtn" class="btn ghost">Tabla de esta ecuación</button>
+          </div>
+
+          <div class="auto-result">
+            <span>Resultado mínimo (SOP)</span>
+            <div id="simplifiedResult" class="equation-box large">—</div>
+          </div>
+
+          <div class="method-workbench">
+            <div class="method-heading">
+              <div>
+                <strong>Procedimiento completo</strong>
+                <span>La misma función resuelta visualmente, algebraicamente y con método tabular.</span>
+              </div>
+              <span class="method-count">3 métodos</span>
+            </div>
+
+            <div class="method-tabs" role="tablist" aria-label="Métodos de simplificación">
+              <button class="method-tab active" type="button" data-method="karnaugh" role="tab" aria-selected="true">
+                <span class="method-tab-icon">▦</span>
+                <span>Mapa de Karnaugh<small>Agrupaciones visuales</small></span>
+              </button>
+              <button class="method-tab" type="button" data-method="algebra" role="tab" aria-selected="false">
+                <span class="method-tab-icon">ƒ</span>
+                <span>Álgebra booleana<small>Procedimiento explicado</small></span>
+              </button>
+              <button class="method-tab" type="button" data-method="tabular" role="tab" aria-selected="false">
+                <span class="method-tab-icon">≣</span>
+                <span>Método tabular<small>Quine–McCluskey</small></span>
+              </button>
+            </div>
+
+            <section id="karnaughMethod" class="method-panel active" data-method-panel="karnaugh">
+              <div class="method-description">
+                <strong>Solución mediante mapa de Karnaugh</strong>
+                <span>Se colocan los minterminos en código Gray, se forman grupos potencia de dos y se obtiene un término por cada grupo.</span>
+              </div>
+              <div id="karnaughProcedure" class="method-content empty-state">Simplifica una ecuación para construir el mapa.</div>
+            </section>
+
+            <section id="algebraMethod" class="method-panel" data-method-panel="algebra" hidden>
+              <div class="method-description">
+                <strong>Solución mediante álgebra booleana</strong>
+                <span>Se parte de la forma SOP, se factoriza y se aplican complemento, identidad, idempotencia y absorción.</span>
+              </div>
+              <div id="algebraProcedure" class="procedure-list empty-state">Simplifica una ecuación para ver el desarrollo algebraico.</div>
+            </section>
+
+            <section id="tabularMethod" class="method-panel" data-method-panel="tabular" hidden>
+              <div class="method-description">
+                <strong>Solución mediante Quine–McCluskey</strong>
+                <span>Se comparan patrones binarios, se eliminan variables y se elige una cobertura mínima.</span>
+              </div>
+              <div id="simplificationProcedure" class="procedure-list empty-state">Simplifica una ecuación para ver el procedimiento tabular.</div>
+            </section>
+          </div>
+
+          <div class="step-builder">
+            <div class="manual-steps-title">Pasos manuales y comprobación</div>
+            <label class="field-label" for="stepExpression">Agregar un paso manual</label>
+            <div class="step-row">
+              <input id="stepExpression" type="text" spellcheck="false" placeholder="Escribe la siguiente expresión" />
+              <select id="stepRule" aria-label="Regla utilizada">
+                <option value="">Regla utilizada…</option>
+                <option>Identidad</option>
+                <option>Nulidad</option>
+                <option>Idempotencia</option>
+                <option>Complemento</option>
+                <option>Involución</option>
+                <option>Conmutativa</option>
+                <option>Asociativa</option>
+                <option>Distributiva</option>
+                <option>Absorción</option>
+                <option>De Morgan</option>
+                <option>Consenso</option>
+                <option>Factorización</option>
+              </select>
+              <button id="addStepBtn" class="btn">Agregar paso</button>
+            </div>
+          </div>
+
+          <div id="stepsList" class="steps-list empty-state">Todavía no hay pasos.</div>
+        </section>
+
+        <aside class="equation-side">
+          <div class="side-card">
+            <h3>Comprobador de equivalencia</h3>
+            <p>Compara dos ecuaciones mediante todas sus combinaciones posibles.</p>
+            <label>
+              Ecuación 1
+              <input id="compareA" type="text" spellcheck="false" placeholder="A + AB" />
+            </label>
+            <label>
+              Ecuación 2
+              <input id="compareB" type="text" spellcheck="false" placeholder="A" />
+            </label>
+            <button id="compareBtn" class="btn full primary">Comparar</button>
+            <div id="compareResult" class="compare-result neutral">Esperando ecuaciones.</div>
+          </div>
+
+          <div class="side-card">
+            <h3>Atajos rápidos</h3>
+            <div class="symbol-grid">
+              <button data-symbol="'">A'</button>
+              <button data-symbol=" + ">+</button>
+              <button data-symbol="·">·</button>
+              <button data-symbol="(">(</button>
+              <button data-symbol=")">)</button>
+              <button data-symbol=" ⊕ ">⊕</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="truthTab" class="tab-panel">
+      <div class="truth-layout">
+        <div class="section-heading truth-heading">
+          <div>
+            <h2>Tabla de verdad</h2>
+            <p id="truthSourceLabel">Se genera desde el circuito actual.</p>
+          </div>
+          <div class="truth-actions">
+            <button id="refreshTruthBtn" class="btn primary">Actualizar</button>
+            <button id="copyTruthBtn" class="btn ghost">Copiar CSV</button>
+          </div>
+        </div>
+        <div id="truthTableContainer" class="truth-table-wrap empty-state">
+          Agrega entradas y una salida en el circuito, luego genera la tabla.
+        </div>
+      </div>
+    </section>
+
+    <section id="rulesTab" class="tab-panel">
+      <div class="rules-layout">
+        <div class="section-heading rules-heading">
+          <div>
+            <h2>Reglas de simplificación booleana</h2>
+            <p>Las reglas más usadas para reducir ecuaciones sin cambiar su resultado.</p>
+          </div>
+          <input id="ruleSearch" class="rule-search" type="search" placeholder="Buscar regla…" />
+        </div>
+        <div id="rulesGrid" class="rules-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
